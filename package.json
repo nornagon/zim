@@ -1,0 +1,10 @@
+{
+  "name": "zim",
+  "description": "zooming vim",
+  "version": "0.0.1",
+  "author": "Jeremy Apthorp <nornagon@nornagon.net> (http://nornagon.net)",
+  "dependencies": {
+    "share": "~0.5",
+    "connect": "~2.7"
+  }
+}
