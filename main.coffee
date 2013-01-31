@@ -86,7 +86,7 @@ repositionCursor = (p) ->
 moveTo = (p, line, char) ->
   doc = sharedoc.snapshot.pads[p]
   cursors[p].line = Math.max 0, Math.min doc.lines.length-1, line
-  cursors[p].char = Math.max 0, Math.min doc.lines[cursors[p].line].length-1, char
+  cursors[p].char = Math.max 0, Math.min doc.lines[cursors[p].line].length-1*!(mode is insert), char
 move = (p, dy, dx) ->
   if dx is 0
     moveTo p, cursors[p].line + dy, (cursors[p].default_char ?= cursors[p].char)
@@ -121,6 +121,12 @@ normal =
           move focused, -1, 0
         when 'i'
           mode = insert
+        when 'I'
+          mode = insert
+          moveTo focused, cursors[focused].line, 0
+        when 'A'
+          mode = insert
+          moveTo focused, cursors[focused].line, Infinity
         when 'x'
           deleteCharAt focused, cursors[focused].line, cursors[focused].char
         when '$'
@@ -131,6 +137,7 @@ insert =
   down: (e) ->
     if e.which is 27
       mode = normal
+      repositionCursor focused
     draw()
   press: (e) ->
     kc = e.keyCode
