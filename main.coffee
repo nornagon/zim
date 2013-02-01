@@ -4,11 +4,7 @@ ctx = canvas.getContext '2d'
 FONT = 'bold 12px "Menlo", "Consolas"'
 MGN = 4
 
-initial_data = { pads: {
-  1: { lines: ['#!/bin/sh','','echo hello, world'], left:0, top:0, width:80, name:'hi.sh' }
-  2: { lines: ['express = require "express"','','app = express()', '','app.use express.static __dirname', 'app.use express.logger()', '', 'app.listen 3000'], left:600, top:40, width:80, name:'serve.coffee' }
-} }
-cursors = {1:{line:0,char:0},2:{line:0,char:0}}
+cursors = {}
 
 sharedoc = null
 sharejs.open 'workspace', 'json', (err, doc) ->
@@ -46,6 +42,10 @@ metrics = (->
 )()
 
 offset = {x:-600,y:-200,scale:1}
+if stored_offset = localStorage.getItem 'offset'
+  try offset = JSON.parse stored_offset
+saveOffset = ->
+  localStorage.setItem 'offset', JSON.stringify offset
 focused = null
 
 drawPending = false
@@ -144,7 +144,10 @@ normal =
           move focused, -1, 0
         when '$'
           moveTo focused, cursors[focused].line, Infinity
-          p.cursor.default_char = Infinity
+          cursors[focused].default_char = Infinity
+        when '^'
+          moveTo focused, cursors[focused].line, 0
+          cursors[focused].default_char = 0
         when 'i'
           mode = insert
         when 'a'
@@ -199,9 +202,11 @@ window.onmousewheel = (e) ->
   if e.metaKey
     offset.scale += e.wheelDeltaY*0.01
     offset.scale = Math.min 10, Math.max 1, offset.scale
+    saveOffset()
   else
-    offset.x += Math.round e.wheelDeltaX*0.5*offset.scale*0.5
+    #offset.x += Math.round e.wheelDeltaX*0.5*offset.scale*0.5
     offset.y += Math.round e.wheelDeltaY*0.5*offset.scale*0.5
+    saveOffset()
   draw()
   return false
 
@@ -221,6 +226,8 @@ padForClientXY = (cx,cy) ->
 
 window.addEventListener 'mouseup', click = (e) ->
   if (p = padForClientXY e.clientX, e.clientY) isnt focused
+    if p not of cursors
+      cursors[p] = {line:0, char:0}
     focused = p
     draw()
 
@@ -245,6 +252,7 @@ window.onmousedown = (e) ->
   dragmove = (e) ->
     offset.x += (e.clientX - heldAt.x)*offset.scale
     offset.y += (e.clientY - heldAt.y)*offset.scale
+    saveOffset()
     heldAt.x = e.clientX
     heldAt.y = e.clientY
     draw()
