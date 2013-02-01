@@ -48,6 +48,20 @@ saveOffset = ->
   localStorage.setItem 'offset', JSON.stringify offset
 focused = null
 
+wrap = (lines, width) ->
+  ret = []
+  for l,i in lines
+    x = 0
+    if l.length is 0
+      ret.push { num: i, text: '', first: 0, last:0 }
+      continue
+    while l.length > 0
+      part = l[0...width]
+      ret.push { num: i, text: part, first: x, last:x+part.length-1 }
+      l = l[width..]
+      x += width
+  ret
+
 drawPending = false
 draw = ->
   return if drawPending
@@ -67,17 +81,21 @@ draw = ->
       ctx.fillStyle = 'lightgrey'
       ctx.fillText p.name, 0, metrics.height*-1-MGN
       ctx.fillStyle = 'hsla(0,10%,90%,0.8)'
-      ctx.fillRect -MGN, -MGN, p.width*metrics.width+MGN*2, p.lines.length*metrics.height+MGN*2
+      physical_lines = wrap p.lines, p.width
+      ctx.fillRect -MGN, -MGN, p.width*metrics.width+MGN*2, physical_lines.length*metrics.height+MGN*2
       ctx.strokeStyle = if id is focused then 'black' else 'lightgray'
       ctx.lineWidth = 2
-      ctx.strokeRect -MGN, -MGN, p.width*metrics.width+MGN*2, p.lines.length*metrics.height+MGN*2
-      if id is focused
-        ctx.fillStyle = 'red'
-        w = if mode is insert then 2 else metrics.width
-        ctx.fillRect cursors[id].char*metrics.width, cursors[id].line*metrics.height, w, metrics.height
-      ctx.fillStyle = 'black'
-      for l,i in p.lines
-        ctx.fillText l, 0, metrics.height*i
+      ctx.strokeRect -MGN, -MGN, p.width*metrics.width+MGN*2, physical_lines.length*metrics.height+MGN*2
+      y = 0
+      for l,i in physical_lines
+        if id is focused
+          c_ch = cursors[id].char
+          if l.num is cursors[id].line and l.first <= c_ch <= l.last
+            ctx.fillStyle = 'red'
+            w = if mode is insert then 2 else metrics.width
+            ctx.fillRect (c_ch-l.first)*metrics.width, i*metrics.height, w, metrics.height
+        ctx.fillStyle = 'black'
+        ctx.fillText l.text, 0, metrics.height*i
       ctx.restore()
     ctx.restore()
 
