@@ -18,11 +18,11 @@ sharejs.open 'workspace', 'json', (err, doc) ->
   doc.on 'change', (op) ->
     for c in op
       if c.si? or c.sd?
-        char = c.p[c.p.length-1]
-        line = c.p[c.p.length-2]
+        ch = c.p[c.p.length-1]
+        l = c.p[c.p.length-2]
         id = c.p[1]
-        if cursors[id].line is line
-          if cursors[id].char > char
+        if cursors[id].line is l
+          if cursors[id].char > ch
             if c.si?
               cursors[id].char += c.si.length
             else if c.sd?
@@ -100,13 +100,36 @@ deleteCharAt = (p, line, char) ->
   if char >= sharedoc.snapshot.pads[p].lines[line].length
     return
   sharedoc.submitOp {p:['pads',p,'lines',line,char], sd:sharedoc.snapshot.pads[p].lines[line].charAt(char)}
+insertLine = (p, l) ->
+  sharedoc.submitOp {p:['pads',p,'lines',l],li:''}
+  moveTo p, l, 0
+join = (p, l) ->
+  return unless l < sharedoc.snapshot.pads[p].lines.length-1
+  line1 = sharedoc.snapshot.pads[p].lines[l]
+  line2 = sharedoc.snapshot.pads[p].lines[l+1]
+  sharedoc.submitOp [
+    {p:['pads',p,'lines',l+1],ld:line2}
+    {p:['pads',p,'lines',l,line1.length],si:line2}
+  ]
 
 mode = null
 window.onkeypress = (e) ->
   mode.press e
 window.onkeydown = (e) ->
+  if e.which is 8
+    e.preventDefault()
   mode.down? e
 normal =
+  down: (e) ->
+    if e.which is 37 # left
+      move focused, 0, -1
+    else if e.which is 38 # up
+      move focused, -1, 0
+    else if e.which is 39 # right
+      move focused, 0, 1
+    else if e.which is 40 # down
+      move focused, 1, 0
+    draw()
   press: (e) ->
     c = String.fromCharCode e.charCode
     if focused
@@ -119,8 +142,14 @@ normal =
           move focused, 1, 0
         when 'k'
           move focused, -1, 0
+        when '$'
+          moveTo focused, cursors[focused].line, Infinity
+          p.cursor.default_char = Infinity
         when 'i'
           mode = insert
+        when 'a'
+          mode = insert
+          move focused, 0, 1
         when 'I'
           mode = insert
           moveTo focused, cursors[focused].line, 0
@@ -129,15 +158,33 @@ normal =
           moveTo focused, cursors[focused].line, Infinity
         when 'x'
           deleteCharAt focused, cursors[focused].line, cursors[focused].char
-        when '$'
-          moveTo focused, cursors[focused].line, Infinity
-          p.cursor.default_char = Infinity
+        when 'o'
+          insertLine focused, cursors[focused].line+1
+          mode = insert
+        when 'O'
+          insertLine focused, cursors[focused].line
+          mode = insert
       draw()
 insert =
   down: (e) ->
-    if e.which is 27
+    if e.which is 37 # left
+      move focused, 0, -1
+    else if e.which is 38 # up
+      move focused, -1, 0
+    else if e.which is 39 # right
+      move focused, 0, 1
+    else if e.which is 40 # down
+      move focused, 1, 0
+    else if e.which is 27
       mode = normal
-      repositionCursor focused
+      move focused, 0, -1
+    else if e.which is 8 # backspace
+      if cursors[focused].char is 0 and cursors[focused].line > 0
+        c = sharedoc.snapshot.pads[focused].lines[cursors[focused].line-1].length
+        join focused, cursors[focused].line-1
+        moveTo focused, cursors[focused].line-1, c
+      else
+        deleteCharAt focused, cursors[focused].line, Math.max 0, cursors[focused].char-1
     draw()
   press: (e) ->
     kc = e.keyCode
