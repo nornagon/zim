@@ -226,7 +226,7 @@ padForClientXY = (cx,cy) ->
 
 window.addEventListener 'mouseup', click = (e) ->
   if (p = padForClientXY e.clientX, e.clientY) isnt focused
-    if p not of cursors
+    if p and p not of cursors
       cursors[p] = {line:0, char:0}
     focused = p
     draw()
